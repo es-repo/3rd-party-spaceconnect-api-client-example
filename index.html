@@ -10,28 +10,46 @@
             button {
                 margin-bottom: 1rem;
             }
+
+            fieldset {
+                margin-bottom: 1rem;
+
+            }
         </style>
     </head>
     <body>
-        <h1>SpaceConnect API client</h1>
+        <h1>SpaceConnect API client example</h1>
         <fieldset>
             <legend>User info</legend>
             <button id="login-btn" type="button">Login</button>
             
             <div id="user-info-data-container" style="display:none">
                 <button id="logout-btn" type="button">Logout</button>
-                <div><b>email: </b><span id="email-span">{email}<span></div>
-                <div><b>name: </b><span id="name-span">{name}<span></div> 
-                <div><b>id token: </b><br><textarea cols="80" rows="20" readonly=true id="id-token-text-area">{id-token}</textarea></div>    
+                <div><b>Email: </b><span id="email-span">{email}<span></div>
+                <div><b>Name: </b><span id="name-span">{name}<span></div> 
+                <div><b>ID token: </b><br><textarea cols="80" rows="20" readonly=true id="id-token-text-area"></textarea></div>    
             </div>
         </fieldset>
+        
+        <fieldset id="api-calling-test-fieldset" style="display:none">
+            <legend>Licenses API</legend>
+            <div><b>Base URL: </b><span id="api-base-url-span">{apiBaseUrl}</span></div>
+            <br>
+            <div><button type="button" id="generated-by-my-organisation-btn">generatedByMyOrganisation</button><div>
+            <div><b>Response: </b></div>
+            <textarea cols="80" rows="20" readonly=true id="api-call-response-text-area"></textarea>
+        </fieldset>
         <script>
+
+            const isLocalhost = window.location.host == "localhost:5000";
+            const apiHost = isLocalhost ? "localhost:44348" : "localhost:44348"
 
             const config = {
                 clientId: "47203b7b-4c0f-4a73-adf4-55d9fd1e951c",
                 tenantId: "711800bc-a7d9-4f64-9022-3b279aac277c",
-                redirectUri: window.location.host == "localhost:5000" ? "http://localhost:5000" : "https://es-repo.github.io/3rd-party-spaceconnect-api-client-example/",
-                scopes: ["openid"]
+                redirectUri: isLocalhost ? "http://localhost:5000" : "https://es-repo.github.io/3rd-party-spaceconnect-api-client-example/",
+                scopes: ["openid"],
+                apiBaseUrl: `https://${apiHost}/api/external/v1/licenses/`
             };
 
             const msalPublicClientApplication = creatMsalPublicClientApplication(config);
@@ -42,9 +60,15 @@
             const emailSpan = document.getElementById('email-span');
             const nameSpan = document.getElementById('name-span');
             const idTokenTextArea = document.getElementById('id-token-text-area');
+            const apiBaseUrlSpan = document.getElementById('api-base-url-span');
+            const apiCallingTestFieldset = document.getElementById('api-calling-test-fieldset');
+            const apiCallResponseTextArea = document.getElementById('api-call-response-text-area');
+            const generatedByMyOrganisationBtn = document.getElementById('generated-by-my-organisation-btn');
 
-            loginBtn.addEventListener('click', onLoginBtnClick)
-            logoutBtn.addEventListener('click', onLogoutBtnClick)
+            loginBtn.addEventListener("click", onLoginBtnClick);
+            logoutBtn.addEventListener("click", onLogoutBtnClick);
+
+            generatedByMyOrganisationBtn.addEventListener("click", onGeneratedByMyOrganisationBtnClick)
 
             function onLoginBtnClick() {
                 acquireToken();
@@ -53,9 +77,11 @@
             function onLoginSuccess(tokenResponse) {
                 setElementVisibility(loginBtn, false);
                 setElementVisibility(userInfoDataContainer, true);
+                setElementVisibility(apiCallingTestFieldset, true);
                 emailSpan.innerText = tokenResponse.account.username;
                 nameSpan.innerText = tokenResponse.account.name;
                 idTokenTextArea.innerText = tokenResponse.idToken;
+                apiBaseUrlSpan.innerText = config.apiBaseUrl
             }
 
             function onLogoutBtnClick() {
@@ -127,7 +153,7 @@
                 }
                 else {
                     msalPublicClientApplication.acquireTokenRedirect(tokenRequest);
-                    return Promise.reject("User interaction in process.");
+                    return Promise.reject("User interaction in progress.");
                 }
                 
             }
@@ -136,9 +162,38 @@
                 return msalPublicClientApplication.getAllAccounts()[0];
             }
 
+            
+
+            function onGeneratedByMyOrganisationBtnClick() {
+                const endpoint = config.apiBaseUrl + 'generatedByMyOrganisation';
+                callApi(endpoint);
+            }
+
+            function callApi(endpoint) {
+                acquireToken()
+                    .then(tokenResponse => {
+                        fetch(endpoint, {
+                            method: "GET",
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + tokenResponse.idToken,
+                                mode: 'no-cors'
+                            }
+                        })
+                        .then(apiReponse => {
+                            apiReponse.json()
+                                .then(data => apiCallResponseTextArea.innerText = JSON.stringify(data))
+                                .catch(onError)
+                        })
+                        .catch(onError)
+                    })
+                    .catch(onError);
+            }
+
             function onError(error) {
                 console.error(error)
             }
+
         </script>
     </body>
 </html>
