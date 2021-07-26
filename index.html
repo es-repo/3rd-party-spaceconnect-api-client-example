@@ -1,8 +1,143 @@
 <html>
     <head>
         <title>3rd party SpaceConnect API client example</title>
+        <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.16.0/js/msal-browser.js"></script>
+        <style>
+            :root{
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            button {
+                margin-bottom: 1rem;
+            }
+        </style>
     </head>
     <body>
-        Hello SpaceConnect api client.
+        <fieldset>
+            <legend>User info</legend>
+            <button id="login-btn" type="button">Login</button>
+            
+            <div id="user-info-data-container" style="display:none">
+                <button id="logout-btn" type="button">Logout</button>
+                <div><b>email: </b><span id="email-span">{email}<span></div>
+                <div><b>name: </b><span id="name-span">{name}<span></div> 
+                <div><b>id token: </b><br><textarea cols="80" rows="20" readonly=true id="id-token-text-area">{id-token}</textarea></div>    
+            </div>
+        </fieldset>
+        <script>
+
+            const config = {
+                clientId: "47203b7b-4c0f-4a73-adf4-55d9fd1e951c",
+                tenantId: "711800bc-a7d9-4f64-9022-3b279aac277c",
+                redirectUri: window.location.host == "localhost:5000" ? "http://localhost:5000" : "https://es-repo.github.io/3rd-party-spaceconnect-api-client-example/",
+                scopes: ["openid"]
+            };
+
+            const msalPublicClientApplication = creatMsalPublicClientApplication(config);
+
+            const loginBtn = document.getElementById('login-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const userInfoDataContainer = document.getElementById('user-info-data-container');
+            const emailSpan = document.getElementById('email-span');
+            const nameSpan = document.getElementById('name-span');
+            const idTokenTextArea = document.getElementById('id-token-text-area');
+
+            loginBtn.addEventListener('click', onLoginBtnClick)
+            logoutBtn.addEventListener('click', onLogoutBtnClick)
+
+            function onLoginBtnClick() {
+                acquireToken();
+            }
+
+            function onLoginSuccess(tokenResponse) {
+                setElementVisibility(loginBtn, false);
+                setElementVisibility(userInfoDataContainer, true);
+                emailSpan.innerText = tokenResponse.account.username;
+                nameSpan.innerText = tokenResponse.account.name;
+                idTokenTextArea.innerText = tokenResponse.idToken;
+            }
+
+            function onLogoutBtnClick() {
+                msalPublicClientApplication.logoutRedirect();
+            }
+
+            function setElementVisibility(elem, value) {
+                elem.style.display = value ? '' : 'none';
+            }
+
+            function creatMsalPublicClientApplication(config) {
+                const msalConfig = {
+                    auth: {
+                        clientId: config.clientId,
+                        redirectUri: config.redirectUri,
+                        authority: 'https://login.microsoftonline.com/' + config.tenantId
+                    }
+                }
+
+                const msalPublicClientApplication = new msal.PublicClientApplication(msalConfig);
+                
+                tryLoginSilent(msalPublicClientApplication);
+
+                return msalPublicClientApplication;
+            }
+
+            function createTokenRequest(msalPublicClientApplication) {
+                const account = getCurrentAccount(msalPublicClientApplication);
+
+                return tokenRequest = {
+                    scopes: config.scopes,
+                    account: account
+                }
+            }
+
+            function tryLoginSilent(msalPublicClientApplication){
+                // Get token from redirection.
+                msalPublicClientApplication.handleRedirectPromise()
+                    .then(tokenResponse => {
+                        if (tokenResponse)
+                            onLoginSuccess(tokenResponse);
+                        else {
+                            // Or get token from local storage.
+                            const tokenRequest = createTokenRequest(msalPublicClientApplication)
+                            tokenRequest.account && msalPublicClientApplication.acquireTokenSilent(tokenRequest)
+                                .then(onLoginSuccess)
+                                .catch(error => {
+                                    if (!(error instanceof InteractionRequiredAuthError))
+                                        onError(error);
+                                });
+                        }
+                    })
+                    .catch(onError);
+            }
+
+            function acquireToken() {
+                const tokenRequest = createTokenRequest(msalPublicClientApplication);
+
+                if (tokenRequest.account) {
+                    return msalPublicClientApplication.acquireTokenSilent(tokenRequest)
+                        .catch(error => {
+                            if (error instanceof InteractionRequiredAuthError) {
+                                msalPublicClientApplication.acquireTokenRedirect(tokenRequest);
+                            }
+                            else {
+                                onError(error);
+                            }
+                        });
+                }
+                else {
+                    msalPublicClientApplication.acquireTokenRedirect(tokenRequest);
+                    return Promise.reject("User interaction in process.");
+                }
+                
+            }
+
+            function getCurrentAccount(msalPublicClientApplication) {
+                return msalPublicClientApplication.getAllAccounts()[0];
+            }
+
+            function onError(error) {
+                console.error(error)
+            }
+        </script>
     </body>
 </html>
