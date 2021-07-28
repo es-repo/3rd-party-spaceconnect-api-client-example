@@ -21,7 +21,7 @@
         <h1>SpaceConnect API client example</h1>
         <fieldset>
             <legend>User info</legend>
-            <button id="login-btn" type="button">Login</button>
+            <button id="login-btn" type="button"><b>Login</b> with a user from <i>spaceconnect3.onmicrosoft.com</i> domain.</button>
             
             <div id="user-info-data-container" style="display:none">
                 <button id="logout-btn" type="button">Logout</button>
@@ -41,8 +41,8 @@
         </fieldset>
         <script>
 
-            const isLocalhost = window.location.host == "localhost:5000";
-            const apiHost = isLocalhost ? "localhost:44348" : "localhost:44348"
+            const isLocalhost = window.location.host.startsWith("localhost");
+            const apiHost = isLocalhost ? "localhost:44348" : "evoko-licensing.azurewebsites.net"
 
             const config = {
                 clientId: "47203b7b-4c0f-4a73-adf4-55d9fd1e951c",
